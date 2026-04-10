@@ -1,0 +1,243 @@
+{
+  "name": "Capstone Project",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "career-agent",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "b9519081-7580-4043-8628-06c3c183a88a",
+      "name": "Webhook",
+      "webhookId": "6b66bd2b-96cf-4ad5-91f3-33b3aa4a53f7"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json.body;\n\nconst marks = input.marks;\nconst markKeys = Object.keys(marks);\nconst avgMark = markKeys.reduce((sum, k) => sum + marks[k], 0) / markKeys.length;\n\nconst p = input.personality;\nconst normalizedPersonality = {\n  analytical:    p.analytical     * 10,\n  creative:      p.creative       * 10,\n  risk_tolerance:p.risk_tolerance * 10,\n  persistence:   p.persistence    * 10,\n  leadership:    p.leadership     * 10\n};\n\nconst interestWeights = {};\ninput.interests_ranked.forEach((interest, i) => {\n  const w = i === 0 ? 100 : i === 1 ? 70 : 40;\n  interestWeights[interest] = w;\n});\n\nreturn [{\n  json: {\n    student_name: input.name,\n    class: input.class,\n    stream: input.stream,\n    marks: marks,\n    avg_mark: Math.round(avgMark),\n    personality: normalizedPersonality,\n    interest_weights: interestWeights,\n    financial_constraint: input.financial_constraint,\n    current_skills: input.current_skills,\n    goal: input.goal\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "68fd0fe5-7b1f-45e5-b52d-5edfa6976875",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "jsCode": "const student = $input.first().json;\n\nconst careers = [\n  {\n    id: \"ml_engineer\",\n    title: \"ML Engineer\",\n    required_skills: [\"Python\", \"Math\", \"Statistics\"],\n    personality_fit: { analytical: 90, creative: 60, persistence: 80 },\n    ai_automation_risk: 15,\n    market_demand: 92,\n    salary_entry: 600000,\n    education_path: \"B.Tech CS/AI → M.Tech ML\",\n    cost_band: \"medium\",\n    time_years: 4,\n    interest_tags: [\"AI_ML\", \"Robotics\"],\n    hybrid_tags: [\"AI + Medicine\", \"AI + Finance\"]\n  },\n  {\n    id: \"doctor\",\n    title: \"Medical Doctor (MBBS)\",\n    required_skills: [\"Biology\", \"Chemistry\", \"Memory\"],\n    personality_fit: { analytical: 70, creative: 40, persistence: 95 },\n    ai_automation_risk: 20,\n    market_demand: 85,\n    salary_entry: 500000,\n    education_path: \"NEET → MBBS → MD\",\n    cost_band: \"high\",\n    time_years: 7,\n    interest_tags: [\"Medicine\"],\n    hybrid_tags: [\"AI + Medicine\", \"Biotech\"]\n  },\n  {\n    id: \"data_scientist\",\n    title: \"Data Scientist\",\n    required_skills: [\"Python\", \"Statistics\", \"Math\"],\n    personality_fit: { analytical: 85, creative: 65, persistence: 75 },\n    ai_automation_risk: 25,\n    market_demand: 88,\n    salary_entry: 550000,\n    education_path: \"B.Tech/BSc → Data Science cert\",\n    cost_band: \"low\",\n    time_years: 3,\n    interest_tags: [\"AI_ML\"],\n    hybrid_tags: [\"AI + Finance\", \"AI + Healthcare\"]\n  },\n  {\n    id: \"robotics_engineer\",\n    title: \"Robotics Engineer\",\n    required_skills: [\"Math\", \"Physics\", \"Python\", \"Electronics\"],\n    personality_fit: { analytical: 85, creative: 80, persistence: 80 },\n    ai_automation_risk: 18,\n    market_demand: 78,\n    salary_entry: 580000,\n    education_path: \"B.Tech ECE/Mechanical → Robotics PG\",\n    cost_band: \"medium\",\n    time_years: 4,\n    interest_tags: [\"Robotics\", \"AI_ML\"],\n    hybrid_tags: [\"AI + Robotics\", \"Medical Devices\"]\n  },\n  {\n    id: \"biotech_researcher\",\n    title: \"Biotechnology Researcher\",\n    required_skills: [\"Biology\", \"Chemistry\", \"Research\"],\n    personality_fit: { analytical: 80, creative: 70, persistence: 90 },\n    ai_automation_risk: 22,\n    market_demand: 72,\n    salary_entry: 420000,\n    education_path: \"B.Tech Biotech → M.Tech/PhD\",\n    cost_band: \"medium\",\n    time_years: 5,\n    interest_tags: [\"Medicine\", \"AI_ML\"],\n    hybrid_tags: [\"AI + Medicine\", \"Biotech\"]\n  }\n];\n\nreturn careers.map(career => ({\n  json: { student, career }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "dd6a0652-2257-466e-b331-0c821a6eec76",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const { student, career } = $input.first().json;\n\n// --- SKILL FIT (25%) ---\nconst skillMatch = career.required_skills.filter(skill => {\n  const normSkill = skill.toLowerCase();\n  const hasInMarks = Object.keys(student.marks).some(m =>\n    normSkill.includes(m) || m.includes(normSkill)\n  );\n  const hasInSkills = student.current_skills.some(s =>\n    s.toLowerCase().includes(normSkill)\n  );\n  return hasInMarks || hasInSkills;\n}).length;\n\nconst skillScore = Math.round((skillMatch / career.required_skills.length) * 100);\n\n// --- PERSONALITY FIT (15%) ---\nconst pKeys = Object.keys(career.personality_fit);\nconst personaScore = Math.round(\n  pKeys.reduce((sum, k) => {\n    const studentVal = student.personality[k] || 50;\n    const careerNeed = career.personality_fit[k];\n    const match = 100 - Math.abs(studentVal - careerNeed);\n    return sum + match;\n  }, 0) / pKeys.length\n);\n\n// --- FUTURE PROOF (25%) ---\nconst futureScore = 100 - career.ai_automation_risk;\n\n// --- MARKET DEMAND (20%) ---\nconst marketScore = career.market_demand;\n\n// --- FEASIBILITY (15%) ---\nconst costMap = { low: 100, medium: 70, high: 40 };\nconst costScore = costMap[career.cost_band] || 50;\nconst timeScore = Math.max(0, 100 - (career.time_years * 10));\nconst feasibilityScore = Math.round((costScore + timeScore) / 2);\n\n// --- INTEREST BOOST (10%) ---\nconst interestBoost = career.interest_tags.reduce((sum, tag) => {\n  return sum + (student.interest_weights[tag] || 0);\n}, 0) / career.interest_tags.length;\n\n// --- FINAL SCORE ---\nconst finalScore = Math.round(\n  skillScore       * 0.25 +\n  personaScore     * 0.15 +\n  futureScore      * 0.25 +\n  marketScore      * 0.20 +\n  feasibilityScore * 0.15 +\n  interestBoost    * 0.10\n);\n\nreturn [{\n  json: {\n    career_id: career.id,\n    career_title: career.title,\n    final_score: finalScore,\n    breakdown: {\n      skill_fit: skillScore,\n      personality: personaScore,\n      future_proof: futureScore,\n      market_demand: marketScore,\n      feasibility: feasibilityScore,\n      interest_boost: Math.round(interestBoost)\n    },\n    education_path: career.education_path,\n    salary_entry: career.salary_entry,\n    hybrid_tags: career.hybrid_tags,\n    student_name: student.student_name\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        0
+      ],
+      "id": "dc05bbf9-da0c-4333-9aa9-46a99ea8030e",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        896,
+        0
+      ],
+      "id": "baf25767-d863-4b69-a4fa-4c9fcbc6f901",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "jsCode": "const all = $input.all().map(item => item.json);\n\n// Safety check\nif (all.length === 0) {\n  throw new Error(\"No career data received\");\n}\n\n// Sort descending\nconst sorted = all.sort((a, b) => b.final_score - a.final_score);\n\n// Top 3 and rest\nconst top3 = sorted.slice(0, 3);\nconst avoid = sorted.slice(3);\n\n// Hybrid tags\nconst allHybridTags = top3.flatMap(c => c.hybrid_tags || []);\nconst hybridCareer = [...new Set(allHybridTags)][0] || \"AI + your top field\";\n\n// Format top 3\nconst top3WithReason = top3.map((c, i) => ({\n  rank: i + 1,\n  career_title: c.career_title,\n  final_score: c.final_score,\n  education_path: c.education_path,\n  salary_entry: c.salary_entry,\n  breakdown: c.breakdown,\n  reasoning: `Ranked #${i+1} with score ${c.final_score}/100. Skill fit: ${c.breakdown?.skill_fit}/100. Personality: ${c.breakdown?.personality}/100. Future-proof: ${c.breakdown?.future_proof}/100. Market demand: ${c.breakdown?.market_demand}/100.`\n}));\n\nreturn [{\n  json: {\n    student_name: top3[0]?.student_name || \"Unknown\",\n    top3_careers: top3WithReason,\n    avoid_careers: avoid.map(c => ({\n      title: c.career_title,\n      score: c.final_score,\n      reason: `Score ${c.final_score}/100 — low alignment with your skill set and personality profile.`\n    })),\n    hybrid_suggestion: hybridCareer,\n    all_scores: sorted.map(c => ({\n      title: c.career_title,\n      score: c.final_score\n    }))\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1328,
+        0
+      ],
+      "id": "01cb6ead-6fa5-448e-beb4-4ef709dc251a",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-goog-api-key",
+              "value": "AIzaSyCTwQ7j9zidrmlJoOH--YQrROoevUauhxI"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [\n    {\n      \"parts\": [\n        {\n          \"text\": \"You are a career intelligence analyst for Indian students. A student named {{ $json.student_name }} has been analyzed. Their top 3 career matches are: {{ $json.top3_careers[0].career_title }} (score: {{ $json.top3_careers[0].final_score }}), {{ $json.top3_careers[1].career_title }} (score: {{ $json.top3_careers[1].final_score }}), {{ $json.top3_careers[2].career_title }} (score: {{ $json.top3_careers[2].final_score }}). Their top career is {{ $json.top3_careers[0].career_title }} with education path: {{ $json.top3_careers[0].education_path }}.\\n\\nGenerate a STRICT JSON response with this exact structure:\\n{\\n  \\\"simulation\\\": {\\n    \\\"year_1\\\": \\\"what student should do in year 1\\\",\\n    \\\"year_3\\\": \\\"progress by year 3\\\",\\n    \\\"year_5\\\": \\\"career position by year 5\\\",\\n    \\\"salary_trajectory\\\": \\\"entry → mid → senior salary in INR\\\",\\n    \\\"biggest_challenge\\\": \\\"one specific challenge\\\"\\n  },\\n  \\\"skill_gap\\\": [\\n    {\\\"skill\\\": \\\"skill name\\\", \\\"priority\\\": \\\"high/medium\\\", \\\"resource\\\": \\\"specific course or platform\\\", \\\"months\\\": 3}\\n  ],\\n  \\\"roadmap\\\": [\\n    {\\\"phase\\\": \\\"Month 1-3\\\", \\\"action\\\": \\\"specific action\\\", \\\"milestone\\\": \\\"what to achieve\\\"}\\n  ],\\n  \\\"psychology_warning\\\": null\\n}\\n\\nRules:\\n- Be specific to Indian market\\n- Salary in INR\\n- Resources must be real platforms like NPTEL, Coursera, LeetCode\\n- Roadmap must have 4 phases\\n- skill_gap must have 3 items\\n- Return ONLY the JSON, no extra text\"\n        }\n      ]\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1760,
+        0
+      ],
+      "id": "d415a042-1536-4080-a282-0bc64eff6064",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\n\n// Extract the text from Gemini response\nconst rawText = response.candidates[0].content.parts[0].text;\n\n// Clean the text — remove markdown code blocks if present\nconst cleaned = rawText\n  .replace(/```json/g, '')\n  .replace(/```/g, '')\n  .trim();\n\n// Parse JSON\nlet geminiData;\ntry {\n  geminiData = JSON.parse(cleaned);\n} catch(e) {\n  geminiData = {\n    simulation: { year_1: \"Parse error\", year_3: \"\", year_5: \"\", salary_trajectory: \"\", biggest_challenge: \"\" },\n    skill_gap: [],\n    roadmap: [],\n    psychology_warning: null\n  };\n}\n\nreturn [{\n  json: geminiData\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1984,
+        0
+      ],
+      "id": "1d39f5e8-f85f-460d-8ec4-1a7ce168f494",
+      "name": "Code in JavaScript4"
+    },
+    {
+      "parameters": {
+        "jsCode": "console.log($input.all());\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1104,
+        0
+      ],
+      "id": "9193253a-823a-4bb9-95d6-4ea407679af8",
+      "name": "Code in JavaScript5"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript5": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "11adc78f-7d9f-41e8-ab64-09762e3e4bf0",
+  "meta": {
+    "instanceId": "c9f4400dfc2c7d77a8572bfe1c91f5a795e741417747e05e3a0ecba0a60e0e06"
+  },
+  "id": "B9qoocFIVXpU62jW",
+  "tags": []
+}
